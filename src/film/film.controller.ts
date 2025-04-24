@@ -95,7 +95,7 @@ export class FilmController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.filmService.findOne(id);
+    return this.filmService.findOne(+id);
   }
 
   @Patch(':id')
@@ -133,13 +133,13 @@ export class FilmController {
     @Body() updateFilmDto: UpdateFilmDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.filmService.update(id, updateFilmDto, file);
+    return this.filmService.update(+id, updateFilmDto, file);
   }
 
   @RoleDec(Role.ADMIN)
   @UseGuards(RolesGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.filmService.remove(id);
+    return this.filmService.remove(+id);
   }
 }

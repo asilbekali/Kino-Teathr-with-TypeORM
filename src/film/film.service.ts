@@ -5,17 +5,15 @@ import {
 } from "@nestjs/common";
 import { CreateFilmDto } from "./dto/create-film.dto";
 import { UpdateFilmDto } from "./dto/update-film.dto";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { film } from "../entities/film.entity";
 import * as fs from "fs";
 import * as path from "path";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Like, Repository } from "typeorm";
 
 @Injectable()
 export class FilmService {
-    constructor(
-        @InjectModel(film.name) private readonly filmModel: Model<film>
-    ) {}
+    constructor(@InjectRepository(film) private filimRepo: Repository<film>) {}
 
     async create(createFilmDto: CreateFilmDto, file: Express.Multer.File) {
         try {
@@ -23,14 +21,15 @@ export class FilmService {
                 throw new BadRequestException("File is required");
             }
 
-            // Save the file path in the database
             const imagePath = `uploads/${file.filename}`;
             const newFilm = {
                 ...createFilmDto,
                 image: imagePath,
             };
 
-            return await this.filmModel.create(newFilm);
+            const savedFilm = await this.filimRepo.save(newFilm);
+
+            return savedFilm;
         } catch (error) {
             console.error("Error creating film:", error.message);
             throw new BadRequestException("Failed to create film");
@@ -46,22 +45,18 @@ export class FilmService {
         try {
             const { name, page = 1, limit = 10, sort = "asc" } = query;
 
-            const filterQuery = name
-                ? { name: { $regex: name, $options: "i" } }
-                : {};
-            const sortQuery: { [key: string]: 1 | -1 } = {
-                name: sort === "asc" ? 1 : -1,
+            const whereQuery = name ? { name: Like(`%${name}%`) } : {};
+
+            const orderQuery: { [key: string]: "ASC" | "DESC" } = {
+                name: sort.toUpperCase() === "asc" ? "ASC" : "DESC",
             };
 
-            const skip = (page - 1) * limit;
-
-            const films = await this.filmModel
-                .find(filterQuery)
-                .sort(sortQuery)
-                .skip(skip)
-                .limit(limit);
-
-            const totalFilms = await this.filmModel.countDocuments(filterQuery);
+            const [films, totalFilms] = await this.filimRepo.findAndCount({
+                where: whereQuery,
+                order: orderQuery,
+                skip: (page - 1) * limit,
+                take: limit,
+            });
 
             return {
                 data: films,
@@ -77,9 +72,9 @@ export class FilmService {
         }
     }
 
-    async findOne(id: string) {
+    async findOne(id: number) {
         try {
-            const filmData = await this.filmModel.findById(id);
+            const filmData = await this.filimRepo.findOne({ where: { id } });
             if (!filmData) {
                 throw new NotFoundException("Film not found");
             }
@@ -91,16 +86,15 @@ export class FilmService {
     }
 
     async update(
-        id: string,
+        id: number,
         updateFilmDto: UpdateFilmDto,
         file?: Express.Multer.File
     ) {
         try {
-            const film = await this.filmModel.findById(id);
+            const film = await this.filimRepo.findOne({ where: { id } });
             if (!film) {
                 throw new NotFoundException("Film not found");
             }
-
             const updatedData = { ...updateFilmDto };
 
             if (file) {
@@ -115,9 +109,9 @@ export class FilmService {
                 }
             }
 
-            const updatedFilm = await this.filmModel
-                .findByIdAndUpdate(id, { $set: updatedData }, { new: true })
-                .exec();
+            await this.filimRepo.update(id, updatedData);
+
+            const updatedFilm = await this.filimRepo.findOne({ where: { id } });
 
             if (!updatedFilm) {
                 throw new Error("Failed to update film");
@@ -130,9 +124,9 @@ export class FilmService {
         }
     }
 
-    async remove(id: string) {
+    async remove(id: number) {
         try {
-            const film = await this.filmModel.findById(id);
+            const film = await this.filimRepo.findOne({ where: { id } });
             if (!film) {
                 throw new NotFoundException("Film not found");
             }
@@ -144,9 +138,9 @@ export class FilmService {
                 }
             }
 
-            const deleteResult = await this.filmModel.deleteOne({ _id: id });
+            const deleteResult = await this.filimRepo.delete(id);
 
-            if (deleteResult.deletedCount === 0) {
+            if (deleteResult.affected === 0) {
                 throw new Error("Failed to delete film");
             }
 
