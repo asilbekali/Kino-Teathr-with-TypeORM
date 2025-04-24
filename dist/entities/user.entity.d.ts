@@ -1,7 +1,7 @@
 export declare class User {
     id: number;
     name: string;
-    email: string;
+    gmail: string;
     password: string;
     role: string;
 }

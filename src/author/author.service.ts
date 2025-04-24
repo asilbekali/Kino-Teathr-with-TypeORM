@@ -3,8 +3,6 @@ import {
     BadRequestException,
     NotFoundException,
 } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { CreateAuthorDto } from "./dto/create-author.dto";
 import { UpdateAuthorDto } from "./dto/update-author.dto";
 import { Author } from "../entities/author.entity";
@@ -19,9 +17,19 @@ export class AuthorService {
 
     async create(createAuthorDto: CreateAuthorDto, file?: Express.Multer.File) {
         try {
-            let newAuthoer = await this.AuthorRepo.create(createAuthorDto);
 
-            return await this.AuthorRepo.save(newAuthoer);
+            let bazaAuthor = await this.AuthorRepo.findOne({where: {name: createAuthorDto.name}})
+
+            if(bazaAuthor){
+                throw new BadRequestException("User alread exists !")
+            }
+
+            let newAuthoer = this.AuthorRepo.create(createAuthorDto);
+
+            this.AuthorRepo.save(newAuthoer)
+
+            return newAuthoer
+
         } catch (error) {
             throw new BadRequestException(error.message);
         }
@@ -86,4 +94,4 @@ export class AuthorService {
     }
 }
 
-// tolqi crud type ormga otkazildi
+

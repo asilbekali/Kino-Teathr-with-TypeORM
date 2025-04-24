@@ -6,16 +6,18 @@ import { User } from "../entities/user.entity";
 import { Model } from "mongoose";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import { Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
 
 @Injectable()
 export class UserService {
     constructor(
-        @InjectModel(User.name) private readonly user: Model<User>,
+        @InjectRepository(User) private readonly user: Repository<User>,
         private readonly jwt: JwtService
     ) {}
 
     async findUser(name: string) {
-        let user = await this.user.findOne({ name });
+        let user = await this.user.findOne({ where: { name } });
         return user;
     }
 
@@ -26,12 +28,14 @@ export class UserService {
         }
         let hash = bcrypt.hashSync(data.password, 10);
 
-        let newUser = await this.user.create({
+        let newUser = this.user.create({
             ...data,
             password: hash,
         });
 
-        return newUser;
+        this.user.save(newUser)
+
+        return newUser
     }
 
     async login(data: UpdateUserDto) {

@@ -24,8 +24,13 @@ let AuthorService = class AuthorService {
     }
     async create(createAuthorDto, file) {
         try {
-            let newAuthoer = await this.AuthorRepo.create(createAuthorDto);
-            return await this.AuthorRepo.save(newAuthoer);
+            let bazaAuthor = await this.AuthorRepo.findOne({ where: { name: createAuthorDto.name } });
+            if (bazaAuthor) {
+                throw new common_1.BadRequestException("User alread exists !");
+            }
+            let newAuthoer = this.AuthorRepo.create(createAuthorDto);
+            this.AuthorRepo.save(newAuthoer);
+            return newAuthoer;
         }
         catch (error) {
             throw new common_1.BadRequestException(error.message);

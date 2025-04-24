@@ -2,13 +2,13 @@ import { Module } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { UserController } from "./user.controller";
 import { MongooseModule } from "@nestjs/mongoose";
-import { User, UserSchema } from "../entities/user.entity";
 import { JwtModule } from "@nestjs/jwt";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { User } from "src/entities/user.entity";
 
 @Module({
     imports: [
-        MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
-
+        TypeOrmModule.forFeature([User]),
         JwtModule.register({
             secret: "film",
             global: true,

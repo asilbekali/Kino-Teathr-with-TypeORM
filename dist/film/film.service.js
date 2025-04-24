@@ -14,15 +14,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FilmService = void 0;
 const common_1 = require("@nestjs/common");
-const mongoose_1 = require("@nestjs/mongoose");
-const mongoose_2 = require("mongoose");
 const film_entity_1 = require("../entities/film.entity");
 const fs = require("fs");
 const path = require("path");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
 let FilmService = class FilmService {
-    filmModel;
-    constructor(filmModel) {
-        this.filmModel = filmModel;
+    filimRepo;
+    constructor(filimRepo) {
+        this.filimRepo = filimRepo;
     }
     async create(createFilmDto, file) {
         try {
@@ -34,7 +34,8 @@ let FilmService = class FilmService {
                 ...createFilmDto,
                 image: imagePath,
             };
-            return await this.filmModel.create(newFilm);
+            const savedFilm = await this.filimRepo.save(newFilm);
+            return savedFilm;
         }
         catch (error) {
             console.error("Error creating film:", error.message);
@@ -44,19 +45,16 @@ let FilmService = class FilmService {
     async findAll(query) {
         try {
             const { name, page = 1, limit = 10, sort = "asc" } = query;
-            const filterQuery = name
-                ? { name: { $regex: name, $options: "i" } }
-                : {};
-            const sortQuery = {
-                name: sort === "asc" ? 1 : -1,
+            const whereQuery = name ? { name: (0, typeorm_2.Like)(`%${name}%`) } : {};
+            const orderQuery = {
+                name: sort.toUpperCase() === "asc" ? "ASC" : "DESC",
             };
-            const skip = (page - 1) * limit;
-            const films = await this.filmModel
-                .find(filterQuery)
-                .sort(sortQuery)
-                .skip(skip)
-                .limit(limit);
-            const totalFilms = await this.filmModel.countDocuments(filterQuery);
+            const [films, totalFilms] = await this.filimRepo.findAndCount({
+                where: whereQuery,
+                order: orderQuery,
+                skip: (page - 1) * limit,
+                take: limit,
+            });
             return {
                 data: films,
                 pagination: {
@@ -73,7 +71,7 @@ let FilmService = class FilmService {
     }
     async findOne(id) {
         try {
-            const filmData = await this.filmModel.findById(id);
+            const filmData = await this.filimRepo.findOne({ where: { id } });
             if (!filmData) {
                 throw new common_1.NotFoundException("Film not found");
             }
@@ -86,7 +84,7 @@ let FilmService = class FilmService {
     }
     async update(id, updateFilmDto, file) {
         try {
-            const film = await this.filmModel.findById(id);
+            const film = await this.filimRepo.findOne({ where: { id } });
             if (!film) {
                 throw new common_1.NotFoundException("Film not found");
             }
@@ -101,9 +99,8 @@ let FilmService = class FilmService {
                     }
                 }
             }
-            const updatedFilm = await this.filmModel
-                .findByIdAndUpdate(id, { $set: updatedData }, { new: true })
-                .exec();
+            await this.filimRepo.update(id, updatedData);
+            const updatedFilm = await this.filimRepo.findOne({ where: { id } });
             if (!updatedFilm) {
                 throw new Error("Failed to update film");
             }
@@ -116,7 +113,7 @@ let FilmService = class FilmService {
     }
     async remove(id) {
         try {
-            const film = await this.filmModel.findById(id);
+            const film = await this.filimRepo.findOne({ where: { id } });
             if (!film) {
                 throw new common_1.NotFoundException("Film not found");
             }
@@ -126,8 +123,8 @@ let FilmService = class FilmService {
                     fs.unlinkSync(imagePath);
                 }
             }
-            const deleteResult = await this.filmModel.deleteOne({ _id: id });
-            if (deleteResult.deletedCount === 0) {
+            const deleteResult = await this.filimRepo.delete(id);
+            if (deleteResult.affected === 0) {
                 throw new Error("Failed to delete film");
             }
             return { message: "Film successfully deleted", film };
@@ -141,7 +138,7 @@ let FilmService = class FilmService {
 exports.FilmService = FilmService;
 exports.FilmService = FilmService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, mongoose_1.InjectModel)(film_entity_1.film.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __param(0, (0, typeorm_1.InjectRepository)(film_entity_1.film)),
+    __metadata("design:paramtypes", [typeorm_2.Repository])
 ], FilmService);
 //# sourceMappingURL=film.service.js.map

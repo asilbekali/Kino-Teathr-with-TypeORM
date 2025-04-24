@@ -43,13 +43,13 @@ let FilmController = class FilmController {
         return this.filmService.findAll(query);
     }
     findOne(id) {
-        return this.filmService.findOne(id);
+        return this.filmService.findOne(+id);
     }
     update(id, updateFilmDto, file) {
-        return this.filmService.update(id, updateFilmDto, file);
+        return this.filmService.update(+id, updateFilmDto, file);
     }
     remove(id) {
-        return this.filmService.remove(id);
+        return this.filmService.remove(+id);
     }
 };
 exports.FilmController = FilmController;
